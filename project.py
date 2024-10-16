@@ -105,36 +105,64 @@ class Project:
         body = self._htmlentitydecode(item.description.text)
         # metadata: original author & link
 
-        body = body + '\n\n---\n<details><summary><i>Originally reported by <a title="' + str(item.reporter) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.reporter.get('username') + '">' + item.reporter.get('username') + '</a>, imported from: <a href="' + self.jiraBaseUrl + '/browse/' + item.key.text + '" target="_blank">' + item.title.text[item.title.text.index("]") + 2:len(item.title.text)] + '</a></i></summary>'
+        reporter_name = str(item.reporter) if item.reporter else "Unknown"
+
+        body += (
+            f'\n\n---\n<details><summary><i>Originally reported by '
+            f'<a title="{reporter_name}" href="{self.jiraBaseUrl}/secure/ViewProfile.jspa?name={reporter_name}">'
+            f'{reporter_name}</a>, imported from: '
+            f'<a href="{self.jiraBaseUrl}/browse/{item.key.text}" target="_blank">'
+            f'{item.title.text[item.title.text.index("]") + 2:]}</a></i></summary>'
+        )
         # metadata: assignee
         body = body + '\n<i><ul>'
-        if item.assignee != 'Unassigned':
-            body = body + '\n<li><b>assignee</b>: <a title="' + str(item.assignee) + '" href="' + self.jiraBaseUrl + '/secure/ViewProfile.jspa?name=' + item.assignee.get('username') + '">' + item.assignee.get('username') + '</a>'
+
+        # Handle assignee safely
+        if item.assignee and item.assignee != 'Unassigned':
+            assignee_name = str(item.assignee)  # Assume assignee is a string, not a dictionary
+            body += (
+                f'\n<li><b>assignee</b>: <a title="{assignee_name}" '
+                f'href="{self.jiraBaseUrl}/secure/ViewProfile.jspa?name={assignee_name}">'
+                f'{assignee_name}</a></li>'
+            )
+
+        # Handle status safely
         try:
-            body = body + '\n<li><b>status</b>: ' + item.status
+            body += f'\n<li><b>status</b>: {item.status}</li>'
         except AttributeError:
             pass
+
+        # Handle priority safely
         try:
-            body = body + '\n<li><b>priority</b>: ' + item.priority
+            body += f'\n<li><b>priority</b>: {item.priority}</li>'
         except AttributeError:
             pass
+
+        # Handle resolution safely
         try:
-            body = body + '\n<li><b>resolution</b>: ' + item.resolution
+            body += f'\n<li><b>resolution</b>: {item.resolution}</li>'
         except AttributeError:
             pass
+
+        # Handle resolved date safely
         try:
-            body = body + '\n<li><b>resolved</b>: ' + self._convert_to_iso(item.resolved.text)
+            resolved_date = self._convert_to_iso(item.resolved.text)
+            body += f'\n<li><b>resolved</b>: {resolved_date}</li>'
         except AttributeError:
             pass
-        body = body + '\n<li><b>imported</b>: ' + datetime.today().strftime('%Y-%m-%d')
-        body = body + '\n</ul></i>\n</details>'
+
+        # Add imported date
+        body += f'\n<li><b>imported</b>: {datetime.today().strftime("%Y-%m-%d")}</li>'
+
+        body += '\n</ul></i>\n</details>'
+
 
         # retrieve jira components and labels as github labels
         labels = []
-        for component in item.component:
-            if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
-                labels.append('jira-component:' + component.text.lower())
-                labels.append(component.text.lower())
+        # for component in item.component:
+        #     if os.getenv('JIRA_MIGRATION_INCLUDE_COMPONENT_IN_LABELS', 'true') == 'true':
+        #         labels.append('jira-component:' + component.text.lower())
+        #         labels.append(component.text.lower())
 
         labels.append(self._jira_type_mapping(item.type.text.lower()))
         
