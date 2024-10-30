@@ -126,6 +126,12 @@ class Project:
                 f'{assignee_name}</a></li>'
             )
 
+        # Handle ticket type safely
+        try:
+            body += f'\n<li><b>type</b>: {item.type.text}</li>'
+        except AttributeError:
+            pass
+
         # Handle status safely
         try:
             body += f'\n<li><b>status</b>: {item.status}</li>'
@@ -153,6 +159,45 @@ class Project:
 
         # Add imported date
         body += f'\n<li><b>imported</b>: {datetime.today().strftime("%Y-%m-%d")}</li>'
+        
+        # Extract custom field with ID for Epic Link
+        custom_field_id = "customfield_10014"
+        custom_field_value = None
+        for customfield in item.customfields.findall('customfield'):
+            if customfield.get('id') == custom_field_id:
+                customfieldvalue = customfield.find('.//customfieldvalue')
+                if customfieldvalue is not None:
+                    custom_field_value = customfieldvalue.text
+                break
+
+        if custom_field_value:
+            body += f'\n<li><b>Epic Link</b>: {custom_field_value}</li>'
+
+        # Extract custom field with ID for Sprint
+        custom_field_id = "customfield_10021"
+        custom_field_value = None
+        for customfield in item.customfields.findall('customfield'):
+            if customfield.get('id') == custom_field_id:
+                customfieldvalue = customfield.find('.//customfieldvalue')
+                if customfieldvalue is not None:
+                    custom_field_value = customfieldvalue.text
+                break
+
+        if custom_field_value:
+            body += f'\n<li><b>Sprint</b>: {custom_field_value}</li>'
+
+        # Extract custom field with ID for Story Points
+        custom_field_id = "customfield_10024"
+        custom_field_value = None
+        for customfield in item.customfields.findall('customfield'):
+            if customfield.get('id') == custom_field_id:
+                customfieldvalue = customfield.find('.//customfieldvalue')
+                if customfieldvalue is not None:
+                    custom_field_value = customfieldvalue.text
+                break
+
+        if custom_field_value:
+            body += f'\n<li><b>Story Points</b>: {custom_field_value}</li>'
 
         body += '\n</ul></i>\n</details>'
 
@@ -173,7 +218,7 @@ class Project:
 
         labels.append('imported-jira-issue')
 
-        unique_labels = list(set(labels))
+        unique_labels = list(filter(None, self.get_labels().keys()))  # Filter out None values
 
         self._project['Issues'].append({'title': item.title.text,
                                         'key': item.key.text,
@@ -194,20 +239,20 @@ class Project:
             del self._project['Issues'][-1]['closed_at']
 
     def _jira_type_mapping(self, issue_type):
-        if issue_type == 'bug':
-            return 'bug'
-        if issue_type == 'improvement':
-            return 'rfe'
-        if issue_type == 'new feature':
-            return 'rfe'
-        if issue_type == 'task':
-            return 'rfe'
-        if issue_type == 'story':
-            return 'rfe'
-        if issue_type == 'patch':
-            return 'rfe'
-        if issue_type == 'epic':
-            return 'epic'
+        if issue_type == 'Epic':
+            return 'Epic'
+        if issue_type == 'Bug':
+            return 'Bug'
+        if issue_type == 'Defect':
+            return 'Defect'
+        if issue_type == 'Enhancement':
+            return 'Enhancement'
+        if issue_type == 'Story':
+            return 'Story'
+        if issue_type == 'Task':
+            return 'Task'
+        if issue_type == 'Sub-task':
+            return 'Sub-task'
 
     def _convert_to_iso(self, timestamp):
         dt = parse(timestamp)
@@ -313,10 +358,10 @@ class Project:
         except KeyError:
             print('2. KeyError at ' + item.key.text)
 
-        for customfield in item.customfields.findall('customfield'):
-            if customfield.get('key') == 'com.pyxis.greenhopper.jira:gh-epic-link':
-                epic_key = customfield.customfieldvalues.customfieldvalue
-                self._project['Issues'][-1]['epic-link'] = epic_key
+        # for customfield in item.customfields.findall('customfield'):
+        #     if customfield.get('key') == 'com.pyxis.greenhopper.jira:gh-epic-link':
+        #         epic_key = customfield.customfieldvalues.customfieldvalue
+        #         self._project['Issues'][-1]['epic-link'] = epic_key
 
     def _htmlentitydecode(self, s):
         if s is None:
